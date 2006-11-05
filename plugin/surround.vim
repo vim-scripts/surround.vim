@@ -1,6 +1,7 @@
 " surround.vim - Surroundings
 " Maintainer:   Tim Pope <vimNOSPAM@tpope.info>
-" $Id: surround.vim,v 1.12 2006/11/01 05:59:08 tpope Exp $
+" GetLatestVimScripts: 1697 1 :AutoInstall: surround.vim
+" $Id: surround.vim,v 1.16 2006/11/06 05:53:09 tpope Exp $
 " Help is below; it may be read here.  Alternatively, after the plugin is
 " installed and running, :call SurroundHelp() to install a proper help file.
 
@@ -79,7 +80,8 @@
 "
 " An "S" in visual mode (*vS*) behaves similarly but always places the
 " surroundings on separate lines.  Additionally, the surrounded text is
-" indented.
+" indented.  In blockwise visual mode, using "S" instead of "s" instead skips
+" trailing whitespace.
 "
 " Note that "s" and "S" already have valid meaning in visual mode, but it is
 " identical to "c".  If you have muscle memory for "s" and would like to use a
@@ -130,9 +132,9 @@
 " Replacements:                                   *surround-replacements*
 "
 " A replacement argument is a single character, and is required by |cs|, |ys|,
-" and |vs|.  Undefined replacement characters default to placing themselves at
-" the beginning and end of the destination, which can be useful for characters
-" like / and |.
+" and |vs|.  Undefined replacement characters (with the exception of
+" alphabetic characters) default to placing themselves at the beginning and
+" end of the destination, which can be useful for characters like / and |.
 "
 " If either ), }, ], or > is used, the text is wrapped in the appropriate
 " pair of characters.  Similar behavior can be found with (, {, and [ (but not
@@ -313,7 +315,7 @@ function! s:fixindent(str,spc)
     let spc = substitute(a:spc,'\t',s:repeat(' ',&sw),'g')
     let str = substitute(str,'\(\n\|\%^\).\@=','\1'.spc,'g')
     if ! &et
-        let str = substitute('\s\{'.&ts.'\}',"\t",'g')
+        let str = substitute(str,'\s\{'.&ts.'\}',"\t",'g')
     endif
     return str
 endfunction
@@ -418,12 +420,16 @@ function! s:wrap(string,char,type,...)
         let idx = idx / 3 * 3
         let before = strpart(pairs,idx+1,1) . spc
         let after  = spc . strpart(pairs,idx+2,1)
-    else
+    elseif newchar !~ '\a'
         let before = newchar
         let after  = newchar
+    else
+        let before = ''
+        let after  = ''
     endif
     "let before = substitute(before,'\n','\n'.initspaces,'g')
     let after  = substitute(after ,'\n','\n'.initspaces,'g')
+    "let after  = substitute(after,"\n\\s*\<C-U>\\s*",'\n','g')
     if type ==# 'V' || (special && type ==# "v")
         let before = substitute(before,' \+$','','')
         let after  = substitute(after ,'^ \+','','')
@@ -443,7 +449,6 @@ function! s:wrap(string,char,type,...)
     if type ==# 'V'
         let before = initspaces.before
     endif
-    let g:initspc = initspaces
     if before =~ '\n\s*\%$'
         if type ==# 'v'
             let keeper = initspaces.keeper
@@ -458,7 +463,8 @@ function! s:wrap(string,char,type,...)
         " Really we should be iterating over the buffer
         let repl = substitute(before,'[\\~]','\\&','g').'\1'.substitute(after,'[\\~]','\\&','g')
         let repl = substitute(repl,'\n',' ','g')
-        let keeper = substitute(keeper."\n",'\(.\{-\}\)\n',repl.'\n','g')
+        let keeper = substitute(keeper."\n",'\(.\{-\}\)\('.(special ? '\s\{-\}' : '').'\n\)',repl.'\n','g')
+        let keeper = substitute(keeper,'\n\%$','','')
     else
         let keeper = before.extraspace.keeper.extraspace.after
     endif
@@ -467,7 +473,7 @@ endfunction
 
 function! s:wrapreg(reg,char,...)
     let orig = getreg(a:reg)
-    let type = getregtype(a:reg)
+    let type = substitute(getregtype(a:reg),'\d\+$','','')
     let special = a:0 ? a:1 : 0
     let new = s:wrap(orig,a:char,type,special)
     call setreg(a:reg,new,type)
@@ -501,6 +507,7 @@ function! s:insert(...) " {{{1
         norm! P`]
     endif
     call search('\r','bW')
+    let @@ = reg_save
     return "\<Del>"
 endfunction " }}}1
 
@@ -651,8 +658,11 @@ function! s:opfunc(type,...) " {{{1
     endif
     call setreg(reg,keeper,type)
     call s:wrapreg(reg,char,a:0)
+    if type == "v" && append != ""
+        call setreg(reg,append,"ac")
+    endif
     silent exe 'norm! gv'.(reg == '"' ? '' : '"' . reg).'p`['
-    if type == 'V' || getreg(reg) =~ '\n'
+    if type == 'V' || (getreg(reg) =~ '\n' && type == 'v')
         call s:reindent()
     endif
     call setreg(reg,reg_save,reg_type)
@@ -681,10 +691,11 @@ endfunction " }}}1
 
 nnoremap <silent> <Plug>Dsurround  :<C-U>call <SID>dosurround(<SID>inputtarget())<CR>
 nnoremap <silent> <Plug>Csurround  :<C-U>call <SID>changesurround()<CR>
-nnoremap <silent> <Plug>Ysurround  :set opfunc=<SID>opfunc<CR>g@
-nnoremap <silent> <Plug>YSurround  :set opfunc=<SID>opfunc2<CR>g@
 nnoremap <silent> <Plug>Yssurround :<C-U>call <SID>opfunc(v:count1)<CR>
 nnoremap <silent> <Plug>YSsurround :<C-U>call <SID>opfunc2(v:count1)<CR>
+" <C-U> discards the numerical argument but there's not much we can do with it
+nnoremap <silent> <Plug>Ysurround  :<C-U>set opfunc=<SID>opfunc<CR>g@
+nnoremap <silent> <Plug>YSurround  :<C-U>set opfunc=<SID>opfunc2<CR>g@
 vnoremap <silent> <Plug>Vsurround  :<C-U>call <SID>opfunc(visualmode())<CR>
 vnoremap <silent> <Plug>VSurround  :<C-U>call <SID>opfunc2(visualmode())<CR>
 inoremap <silent> <Plug>Isurround  <C-R>=<SID>insert()<CR>
@@ -704,7 +715,7 @@ if !exists("g:surround_no_mappings") || ! g:surround_no_mappings
     if !hasmapto("<Plug>VSurround","v")
         vmap      S    <Plug>VSurround
     endif
-    if !hasmapto("<Plug>Isurround","i")
+    if !hasmapto("<Plug>Isurround","i") && !mapcheck("<C-S>","i")
         imap     <C-S> <Plug>Isurround
     endif
     "Implemented internally instead
