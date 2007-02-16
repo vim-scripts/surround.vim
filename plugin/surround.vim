@@ -1,7 +1,7 @@
 " surround.vim - Surroundings
 " Author:       Tim Pope <vimNOSPAM@tpope.info>
 " GetLatestVimScripts: 1697 1 :AutoInstall: surround.vim
-" $Id: surround.vim,v 1.22 2007/02/11 18:23:19 tpope Exp $
+" $Id: surround.vim,v 1.23 2007/02/12 15:37:15 tpope Exp $
 "
 " See surround.txt for help.  This can be accessed by doing
 "
@@ -333,6 +333,10 @@ function! s:insert(...) " {{{1
     let reg_save = @@
     call setreg('"',"\r",'v')
     call s:wrapreg('"',char,linemode)
+    " This can be used to append a placeholder to the end
+    if exists("g:surround_insert_tail")
+        call setreg('"',g:surround_insert_tail,"a".getregtype('"'))
+    endif
     "if linemode
         "call setreg('"',substitute(getreg('"'),'^\s\+','',''),'c')
     "endif
@@ -560,10 +564,18 @@ if !exists("g:surround_no_mappings") || ! g:surround_no_mappings
     nmap          ySs  <Plug>YSsurround
     nmap          ySS  <Plug>YSsurround
     if !hasmapto("<Plug>Vsurround","v")
-        vmap      s    <Plug>Vsurround
+        if exists(":xmap")
+            xmap      s    <Plug>Vsurround
+        else
+            vmap      s    <Plug>Vsurround
+        endif
     endif
     if !hasmapto("<Plug>VSurround","v")
-        vmap      S    <Plug>VSurround
+        if exists(":xmap")
+            xmap      S    <Plug>VSurround
+        else
+            vmap      S    <Plug>VSurround
+        endif
     endif
     if !hasmapto("<Plug>Isurround","i") && !mapcheck("<C-S>","i")
         imap     <C-S> <Plug>Isurround
