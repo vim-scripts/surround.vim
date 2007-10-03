@@ -1,7 +1,7 @@
 " surround.vim - Surroundings
 " Author:       Tim Pope <vimNOSPAM@tpope.info>
 " GetLatestVimScripts: 1697 1 :AutoInstall: surround.vim
-" $Id: surround.vim,v 1.26 2007-07-31 14:20:47 tpope Exp $
+" $Id: surround.vim,v 1.27 2007-10-01 15:27:33 tpope Exp $
 "
 " See surround.txt for help.  This can be accessed by doing
 "
@@ -357,7 +357,7 @@ function! s:insert(...) " {{{1
     " remove the initial newline.  This fits a use case of mine but is a
     " little inconsistent.  Is there anyone that would prefer the simpler
     " behavior of just inserting the newline?
-    if linemode && matchstr(getreg('"'),'^\n\s*\zs.*') == 0
+    if linemode && match(getreg('"'),'^\n\s*\zs.*') == 0
         call setreg('"',matchstr(getreg('"'),'^\n\s*\zs.*'),getregtype('"'))
     endif
     " This can be used to append a placeholder to the end
