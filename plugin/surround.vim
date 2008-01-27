@@ -1,7 +1,7 @@
 " surround.vim - Surroundings
 " Author:       Tim Pope <vimNOSPAM@tpope.info>
 " GetLatestVimScripts: 1697 1 :AutoInstall: surround.vim
-" $Id: surround.vim,v 1.27 2007-10-01 15:27:33 tpope Exp $
+" $Id: surround.vim,v 1.30 2008-01-27 16:27:08 tpope Exp $
 "
 " See surround.txt for help.  This can be accessed by doing
 "
@@ -13,7 +13,7 @@
 " ============================================================================
 
 " Exit quickly when:
-" - this plugin was already loaded (or disabled)
+" - this plugin was already loaded or disabled
 " - when 'compatible' is set
 if (exists("g:loaded_surround") && g:loaded_surround) || &cp
     finish
@@ -334,6 +334,14 @@ function! s:wrapreg(reg,char,...)
 endfunction
 " }}}1
 
+function! s:dotset(seq,count)
+    " hedging bets on the name of a future plugin
+    silent! call repeat#set(a:seq,a:count)
+    if !exists("*repeat#set")
+        silent! call dot#set(a:seq,a:count)
+    endif
+endfunction
+
 function! s:insert(...) " {{{1
     " Optional argument causes the result to appear on 3 lines, not 1
     "call inputsave()
@@ -424,8 +432,9 @@ function! s:dosurround(...) " {{{1
         exe 'norm '.strcount.'[/d'.strcount.']/'
     else
         exe 'norm d'.strcount.'i'.char
+        " One character backwards
+        call search('.','bW')
     endif
-    "exe "norm vi".char."d"
     let keeper = getreg('"')
     let okeeper = keeper " for reindent below
     if keeper == ""
@@ -436,8 +445,6 @@ function! s:dosurround(...) " {{{1
     let oldline = getline('.')
     let oldlnum = line('.')
     if char ==# "p"
-        "let append = matchstr(keeper,'\n*\%$')
-        "let keeper = substitute(keeper,'\n*\%$','','')
         call setreg('"','','V')
     elseif char ==# "s" || char ==# "w" || char ==# "W"
         " Do nothing
@@ -450,32 +457,23 @@ function! s:dosurround(...) " {{{1
         call setreg('"','/**/',"c")
         let keeper = substitute(substitute(keeper,'^/\*\s\=','',''),'\s\=\*$','','')
     else
-        exe "norm! da".char
+        exe "norm da".char
     endif
     let removed = getreg('"')
     let rem2 = substitute(removed,'\n.*','','')
     let oldhead = strpart(oldline,0,strlen(oldline)-strlen(rem2))
     let oldtail = strpart(oldline,  strlen(oldline)-strlen(rem2))
     let regtype = getregtype('"')
-    if char == 'p'
-        let regtype = "V"
-    endif
     if char =~# '[\[({<T]' || spc
         let keeper = substitute(keeper,'^\s\+','','')
         let keeper = substitute(keeper,'\s\+$','','')
     endif
     if col("']") == col("$") && col('.') + 1 == col('$')
-        "let keeper = substitute(keeper,'^\n\s*','','')
-        "let keeper = substitute(keeper,'\n\s*$','','')
         if oldhead =~# '^\s*$' && a:0 < 2
-            "let keeper = substitute(keeper,oldhead.'\%$','','')
             let keeper = substitute(keeper,'\%^\n'.oldhead.'\(\s*.\{-\}\)\n\s*\%$','\1','')
         endif
         let pcmd = "p"
     else
-        if oldhead == "" && a:0 < 2
-            "let keeper = substitute(keeper,'\%^\n\(.*\)\n\%$','\1','')
-        endif
         let pcmd = "P"
     endif
     if line('.') < oldlnum && regtype ==# "V"
@@ -488,7 +486,6 @@ function! s:dosurround(...) " {{{1
     silent exe 'norm! ""'.pcmd.'`['
     if removed =~ '\n' || okeeper =~ '\n' || getreg('"') =~ '\n'
         call s:reindent()
-    else
     endif
     if getline('.') =~ '^\s\+$' && keeper =~ '^\s*\n'
         silent norm! cc
@@ -496,6 +493,11 @@ function! s:dosurround(...) " {{{1
     call setreg('"',removed,regtype)
     let s:lastdel = removed
     let &clipboard = cb_save
+    if newchar == ""
+        call s:dotset("\<Plug>Dsurround".char,scount)
+    else
+        call s:dotset("\<Plug>Csurround".char.newchar,scount)
+    endif
 endfunction " }}}1
 
 function! s:changesurround() " {{{1
@@ -561,6 +563,9 @@ function! s:opfunc(type,...) " {{{1
     call setreg(reg,reg_save,reg_type)
     let &selection = sel_save
     let &clipboard = cb_save
+    if a:type =~ '^\d\+$'
+        call s:dotset("\<Plug>Y".(a:0 ? "S" : "s")."surround".char,a:type)
+    endif
 endfunction
 
 function! s:opfunc2(arg)
