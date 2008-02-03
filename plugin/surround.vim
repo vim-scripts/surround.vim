@@ -1,7 +1,7 @@
 " surround.vim - Surroundings
 " Author:       Tim Pope <vimNOSPAM@tpope.info>
 " GetLatestVimScripts: 1697 1 :AutoInstall: surround.vim
-" $Id: surround.vim,v 1.30 2008-01-27 16:27:08 tpope Exp $
+" $Id: surround.vim,v 1.33 2008-02-04 03:50:46 tpope Exp $
 "
 " See surround.txt for help.  This can be accessed by doing
 "
@@ -334,14 +334,6 @@ function! s:wrapreg(reg,char,...)
 endfunction
 " }}}1
 
-function! s:dotset(seq,count)
-    " hedging bets on the name of a future plugin
-    silent! call repeat#set(a:seq,a:count)
-    if !exists("*repeat#set")
-        silent! call dot#set(a:seq,a:count)
-    endif
-endfunction
-
 function! s:insert(...) " {{{1
     " Optional argument causes the result to appear on 3 lines, not 1
     "call inputsave()
@@ -433,7 +425,9 @@ function! s:dosurround(...) " {{{1
     else
         exe 'norm d'.strcount.'i'.char
         " One character backwards
-        call search('.','bW')
+        if getreg('"') != ""
+            call search('.','bW')
+        endif
     endif
     let keeper = getreg('"')
     let okeeper = keeper " for reindent below
@@ -450,7 +444,7 @@ function! s:dosurround(...) " {{{1
         " Do nothing
         call setreg('"','')
     elseif char =~ "[\"'`]"
-        exe "norm! i \<Esc>d2i".char
+        exe "norm! a \<Esc>d2i".char
         call setreg('"',substitute(getreg('"'),' ','',''))
     elseif char == '/'
         norm! "_x
@@ -494,9 +488,9 @@ function! s:dosurround(...) " {{{1
     let s:lastdel = removed
     let &clipboard = cb_save
     if newchar == ""
-        call s:dotset("\<Plug>Dsurround".char,scount)
+        silent! call repeat#set("\<Plug>Dsurround".char,scount)
     else
-        call s:dotset("\<Plug>Csurround".char.newchar,scount)
+        silent! call repeat#set("\<Plug>Csurround".char.newchar,scount)
     endif
 endfunction " }}}1
 
@@ -564,7 +558,7 @@ function! s:opfunc(type,...) " {{{1
     let &selection = sel_save
     let &clipboard = cb_save
     if a:type =~ '^\d\+$'
-        call s:dotset("\<Plug>Y".(a:0 ? "S" : "s")."surround".char,a:type)
+        silent! call repeat#set("\<Plug>Y".(a:0 ? "S" : "s")."surround".char,a:type)
     endif
 endfunction
 
