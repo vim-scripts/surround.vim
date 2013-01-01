@@ -12,9 +12,9 @@ to change it to
 
 'Hello world!'
 
-Now press cs'<q> to change it to
+Now press cs' to change it to
 
-<q>Hello world!</q>
+Hello world!
 
 To go full circle, press cst" to get
 
@@ -40,27 +40,21 @@ Revert to the original text: ds{ds)
 
 Hello world!
 
-Emphasize hello: ysiw<em>
+Emphasize hello: ysiw
 
-<em>Hello</em> world!
+Hello world!
 
 Finally, let's try out visual mode. Press a capital V (for linewise visual mode)
-followed by S<p class="important">.
+followed by S.
 
-<p class="important">
-  <em>Hello</em> world!
-</p>
+
+  Hello world!
+
 
 This plugin is very powerful for HTML and XML editing, a niche which currently seems underfilled in Vim land.  (As opposed to HTML/XML *inserting*, for which many plugins are available).  Adding, changing, and removing pairs of tags simultaneously is a breeze.
 
 The "." command will work with ds, cs, and yss if you install repeat.vim, vimscript #2136.
 
-All feedback appreciated.  I am particularly interested to hear back on the following topics:
-
-How exactly should indenting be handled?  Is the current s/S distinction useful, or should we just always reindent with =?
-
-Is the s mapping annoying in visual mode? While you can just use c to get the original s function, does it still interfere with motor memory?  This can be disabled if you provide your own map instead, but would this be a good default?
-
-Is the open/closing brace == add/don't add whitespace worth maintaining, or would it be better to just type an extra space before the brace to get said whitespace?
+All feedback appreciated.
 
 http://github.com/tpope/vim-surround
