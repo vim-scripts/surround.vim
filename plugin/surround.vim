@@ -1,6 +1,6 @@
 " surround.vim - Surroundings
 " Author:       Tim Pope <http://tpo.pe/>
-" Version:      2.0
+" Version:      2.1
 " GetLatestVimScripts: 1697 1 :AutoInstall: surround.vim
 
 if exists("g:loaded_surround") || &cp || v:version < 700
@@ -127,7 +127,7 @@ endfunction
 function! s:wrap(string,char,type,...)
   let keeper = a:string
   let newchar = a:char
-  let s:tag = ""
+  let s:input = ""
   let type = a:type
   let linemode = type ==# 'V' ? 1 : 0
   let special = a:0 ? a:1 : 0
@@ -185,10 +185,10 @@ function! s:wrap(string,char,type,...)
     if dounmapb
       silent! cunmap >
     endif
-    let s:tag = tag
+    let s:input = tag
     if tag != ""
       let tag = substitute(tag,'>*$','','')
-      let s:tag = tag . '>'
+      let s:input = tag . '>'
       let before = '<'.tag.'>'
       if tag =~ '/$'
         let after = ''
@@ -217,6 +217,7 @@ function! s:wrap(string,char,type,...)
   elseif newchar ==# 'f' || newchar ==# 'F'
     let fnc = input('function: ')
     if fnc != ""
+      let s:input = fnc."\<CR>"
       let before = substitute(fnc,'($','','').'('
       let after  = ')'
       if newchar ==# 'F'
@@ -226,6 +227,7 @@ function! s:wrap(string,char,type,...)
     endif
   elseif newchar ==# "\<C-F>"
     let fnc = input('function: ')
+    let s:input = fnc."\<CR>"
     let before = '('.fnc.' '
     let after = ')'
   elseif idx >= 0
@@ -340,7 +342,7 @@ function! s:insert(...) " {{{1
 endfunction " }}}1
 
 function! s:reindent() " {{{1
-  if exists("b:surround_indent") ? b:surround_indent : (exists("g:surround_indent") && g:surround_indent)
+  if exists("b:surround_indent") ? b:surround_indent : (!exists("g:surround_indent") || g:surround_indent)
     silent norm! '[=']
   endif
 endfunction " }}}1
@@ -379,6 +381,12 @@ function! s:dosurround(...) " {{{1
   let strcount = (scount == 1 ? "" : scount)
   if char == '/'
     exe 'norm! '.strcount.'[/d'.strcount.']/'
+  elseif char =~# '[[:punct:]]' && char !~# '[][(){}<>"''`]'
+    exe 'norm! T'.char
+    if getline('.')[col('.')-1] == char
+      exe 'norm! l'
+    endif
+    exe 'norm! dt'.char
   else
     exe 'norm! d'.strcount.'i'.char
   endif
@@ -403,9 +411,12 @@ function! s:dosurround(...) " {{{1
     norm! "_x
     call setreg('"','/**/',"c")
     let keeper = substitute(substitute(keeper,'^/\*\s\=','',''),'\s\=\*$','','')
+  elseif char =~# '[[:punct:]]' && char !~# '[][(){}<>]'
+    exe 'norm! F'.char
+    exe 'norm! df'.char
   else
     " One character backwards
-    call search('.','bW')
+    call search('\m.', 'bW')
     exe "norm! da".char
   endif
   let removed = getreg('"')
@@ -430,7 +441,8 @@ function! s:dosurround(...) " {{{1
   endif
   call setreg('"',keeper,regtype)
   if newchar != ""
-    call s:wrapreg('"',newchar)
+    let special = a:0 > 2 ? a:3 : 0
+    call s:wrapreg('"',newchar, special)
   endif
   silent exe 'norm! ""'.pcmd.'`['
   if removed =~ '\n' || okeeper =~ '\n' || getreg('"') =~ '\n'
@@ -445,11 +457,11 @@ function! s:dosurround(...) " {{{1
   if newchar == ""
     silent! call repeat#set("\<Plug>Dsurround".char,scount)
   else
-    silent! call repeat#set("\<Plug>Csurround".char.newchar.s:tag,scount)
+    silent! call repeat#set("\<Plug>C".(a:0 > 2 && a:3 ? "S" : "s")."urround".char.newchar.s:input,scount)
   endif
 endfunction " }}}1
 
-function! s:changesurround() " {{{1
+function! s:changesurround(...) " {{{1
   let a = s:inputtarget()
   if a == ""
     return s:beep()
@@ -458,7 +470,7 @@ function! s:changesurround() " {{{1
   if b == ""
     return s:beep()
   endif
-  call s:dosurround(a,b)
+  call s:dosurround(a,b,a:0 && a:1)
 endfunction " }}}1
 
 function! s:opfunc(type,...) " {{{1
@@ -518,9 +530,9 @@ function! s:opfunc(type,...) " {{{1
   let &selection = sel_save
   let &clipboard = cb_save
   if a:type =~ '^\d\+$'
-    silent! call repeat#set("\<Plug>Y".(a:0 && a:1 ? "S" : "s")."surround".char.s:tag,a:type)
+    silent! call repeat#set("\<Plug>Y".(a:0 && a:1 ? "S" : "s")."surround".char.s:input,a:type)
   else
-    silent! call repeat#set("\<Plug>SurroundRepeat".char.s:tag)
+    silent! call repeat#set("\<Plug>SurroundRepeat".char.s:input)
   endif
 endfunction
 
@@ -547,6 +559,7 @@ endfunction " }}}1
 nnoremap <silent> <Plug>SurroundRepeat .
 nnoremap <silent> <Plug>Dsurround  :<C-U>call <SID>dosurround(<SID>inputtarget())<CR>
 nnoremap <silent> <Plug>Csurround  :<C-U>call <SID>changesurround()<CR>
+nnoremap <silent> <Plug>CSurround  :<C-U>call <SID>changesurround(1)<CR>
 nnoremap <silent> <Plug>Yssurround :<C-U>call <SID>opfunc(v:count1)<CR>
 nnoremap <silent> <Plug>YSsurround :<C-U>call <SID>opfunc2(v:count1)<CR>
 " <C-U> discards the numerical argument but there's not much we can do with it
@@ -560,6 +573,7 @@ inoremap <silent> <Plug>ISurround  <C-R>=<SID>insert(1)<CR>
 if !exists("g:surround_no_mappings") || ! g:surround_no_mappings
   nmap ds  <Plug>Dsurround
   nmap cs  <Plug>Csurround
+  nmap cS  <Plug>CSurround
   nmap ys  <Plug>Ysurround
   nmap yS  <Plug>YSurround
   nmap yss <Plug>Yssurround
@@ -567,11 +581,13 @@ if !exists("g:surround_no_mappings") || ! g:surround_no_mappings
   nmap ySS <Plug>YSsurround
   xmap S   <Plug>VSurround
   xmap gS  <Plug>VgSurround
-  if !hasmapto("<Plug>Isurround","i") && "" == mapcheck("<C-S>","i")
-    imap    <C-S> <Plug>Isurround
+  if !exists("g:surround_no_insert_mappings") || ! g:surround_no_insert_mappings
+    if !hasmapto("<Plug>Isurround","i") && "" == mapcheck("<C-S>","i")
+      imap    <C-S> <Plug>Isurround
+    endif
+    imap      <C-G>s <Plug>Isurround
+    imap      <C-G>S <Plug>ISurround
   endif
-  imap      <C-G>s <Plug>Isurround
-  imap      <C-G>S <Plug>ISurround
 endif
 
 " vim:set ft=vim sw=2 sts=2 et:
